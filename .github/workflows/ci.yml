@@ -37,7 +37,9 @@ jobs:
         if: strategy.job-index == 0
         run: ./gradlew spotlessCheck
       # Error Prone and NullAway run inside javac at -Werror, so compiling is
-      # the lint step; javadoc runs doclint the same way.
+      # the lint step; javadoc runs doclint the same way. Error Prone needs a
+      # Java 21+ runtime, so the Java 17 leg compiles without it and proves
+      # the API floor instead (see build.gradle.kts).
       - name: Compile (Error Prone, NullAway) and Javadoc
         run: ./gradlew classes testClasses javadoc
 

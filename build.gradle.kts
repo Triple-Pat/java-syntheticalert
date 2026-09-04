@@ -16,13 +16,22 @@ version = "0.0.0"
 
 repositories { mavenCentral() }
 
+// Error Prone 2.50 is built for Java 21 and cannot load inside an older javac,
+// which loads every plugin on its processor path before asking whether it is
+// enabled. The library still targets 17: the Java 17 CI leg compiles and tests
+// without Error Prone to prove the API floor, and the 21 and 25 legs carry the
+// lint.
+val lintingJdk = JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)
+
 dependencies {
   // The one dependency: four nullness annotations, a few kilobytes, nothing
   // transitive. `api` because @NullMarked is part of the public contract and
   // Kotlin callers read it. Everything else here runs inside javac or tests.
   api(libs.jspecify)
-  errorprone(libs.errorprone.core)
-  errorprone(libs.nullaway)
+  if (lintingJdk) {
+    errorprone(libs.errorprone.core)
+    errorprone(libs.nullaway)
+  }
 
   testImplementation(platform(libs.junit.bom))
   testImplementation("org.junit.jupiter:junit-jupiter")
@@ -57,6 +66,7 @@ tasks.withType<JavaCompile>().configureEach {
   // Every javac and Error Prone warning is fatal. Error Prone runs as a javac
   // plugin, so this is the lint step; CI has no separate one.
   options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
+  options.errorprone.enabled.set(lintingJdk)
   options.errorprone {
     // Every Error Prone check is on, including the off-by-default ones. Turn a
     // check off here only with the reason next to it.
