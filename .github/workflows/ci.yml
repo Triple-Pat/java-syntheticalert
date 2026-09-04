@@ -14,8 +14,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 17 is the API floor (options.release); 21 and 25 are the later LTS releases.
-        java-version: ["17", "21", "25"]
+        # Newest LTS first: the first leg also runs the formatter and the
+        # Coveralls upload. 17 is the API floor (options.release).
+        java-version: ["25", "21", "17"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -30,7 +31,10 @@ jobs:
         uses: ibiqlik/action-yamllint@v3
         with:
           config_file: .yamllint
+      # google-java-format needs a newer JDK than the 17 floor to run, so the
+      # check runs once, on the newest leg; the code it formats still targets 17.
       - name: Format (google-java-format, ktfmt)
+        if: strategy.job-index == 0
         run: ./gradlew spotlessCheck
       # Error Prone and NullAway run inside javac at -Werror, so compiling is
       # the lint step; javadoc runs doclint the same way.
@@ -45,7 +49,7 @@ jobs:
       # when the gate fails. Main only: the badge tracks main, and pull
       # requests are held to the gate below rather than reported to
       # Coveralls. One matrix leg only (the first, so the condition survives
-      # matrix edits), so Coveralls sees one report per commit. A Coveralls
+      # reordering), so Coveralls sees one report per commit. A Coveralls
       # outage must not redden a run whose lint and tests passed, hence
       # fail-on-error: false.
       - name: Coveralls
