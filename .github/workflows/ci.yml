@@ -61,6 +61,10 @@ jobs:
       # --- Artifacts ---
       - name: Build jars
         run: ./gradlew jar sourcesJar javadocJar
-      # Proves the module descriptor rather than asserting it.
+      # Proves the module descriptor rather than asserting it. The main jar is
+      # found by name so a version bump cannot break the step; the sources and
+      # javadoc jars must stay off the module path.
       - name: Module descriptor
-        run: java -p build/libs/syntheticalert-0.0.0.jar --describe-module com.triplepat.syntheticalert
+        run: |
+          jar=$(ls build/libs/syntheticalert-*.jar | grep -v -e '-sources' -e '-javadoc')
+          java -p "$jar" --describe-module com.triplepat.syntheticalert
