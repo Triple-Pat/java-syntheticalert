@@ -15,11 +15,7 @@ class MicrometerTest {
     SyntheticAlert alert = SyntheticAlert.builder().build(clock);
     PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
 
-    // README snippet, with `alert` from the clock-injecting test constructor.
-    Gauge.builder("triplepat.synthetic.alert", alert, SyntheticAlert::value)
-        .description(Alerts.DESCRIPTION)
-        .strongReference(true)
-        .register(registry);
+    register(registry, alert);
 
     assertTrue(registry.scrape().contains("triplepat_synthetic_alert 0.0"), registry::scrape);
     clock.set(alert.next);
@@ -46,10 +42,15 @@ class MicrometerTest {
   /** Registers a fresh alert and returns only a weak reference to it. */
   private static WeakReference<SyntheticAlert> register(PrometheusMeterRegistry registry) {
     SyntheticAlert alert = SyntheticAlert.create();
+    register(registry, alert);
+    return new WeakReference<>(alert);
+  }
+
+  /** The README snippet, once, so both tests pin the same wiring. */
+  private static void register(PrometheusMeterRegistry registry, SyntheticAlert alert) {
     Gauge.builder("triplepat.synthetic.alert", alert, SyntheticAlert::value)
         .description(Alerts.DESCRIPTION)
         .strongReference(true)
         .register(registry);
-    return new WeakReference<>(alert);
   }
 }

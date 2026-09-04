@@ -10,7 +10,7 @@ final class Alerts {
   /** Fake-clock origin for the wiring tests: an unremarkable nanoTime value. */
   static final long START = 1_000_000_000L;
 
-  /** The gauge description the README snippets carry. */
+  /** The gauge description the README's Micrometer snippet carries. */
   static final String DESCRIPTION =
       "Set to 1 when the synthetic alert should fire and 0 otherwise. "
           + "Alert on this metric and route the alert to a Triple Pat check-in "

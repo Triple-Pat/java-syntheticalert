@@ -7,7 +7,6 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class ScheduleTest {
-  private static final long START = 1_000_000_000L;
   private static final Duration GAP = Duration.ofMinutes(1);
   private static final Duration FIRING = Duration.ofSeconds(10);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
@@ -15,13 +14,13 @@ class ScheduleTest {
 
   @Test
   void startsResolved() {
-    SyntheticAlert alert = Alerts.deterministic(GAP, FIRING, new FakeClock(START));
+    SyntheticAlert alert = Alerts.deterministic(GAP, FIRING, new FakeClock(Alerts.START));
     assertEquals(0.0, alert.value());
   }
 
   @Test
   void firesAfterExactlyOneGapAndResolvesAfterExactlyOneFiring() {
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = Alerts.deterministic(GAP, FIRING, clock);
     for (int cycle = 0; cycle < 100; cycle++) {
       String at = "cycle " + cycle;
@@ -38,14 +37,14 @@ class ScheduleTest {
 
   @Test
   void theGapIsMeasuredFromTheEndOfTheFiringNotItsStart() {
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = Alerts.deterministic(GAP, FIRING, clock);
-    // First firing at START + GAP, resolving at START + GAP + FIRING. If the
+    // First firing at Alerts.START + GAP, resolving at Alerts.START + GAP + FIRING. If the
     // gap were measured from the start of the firing, the second firing would
-    // begin at START + 2 GAP; it must begin at START + 2 GAP + FIRING.
-    clock.set(START + GAP.multipliedBy(2).toNanos());
+    // begin at Alerts.START + 2 GAP; it must begin at Alerts.START + 2 GAP + FIRING.
+    clock.set(Alerts.START + GAP.multipliedBy(2).toNanos());
     assertEquals(0.0, alert.value());
-    clock.set(START + GAP.multipliedBy(2).plus(FIRING).toNanos() - 1);
+    clock.set(Alerts.START + GAP.multipliedBy(2).plus(FIRING).toNanos() - 1);
     assertEquals(0.0, alert.value());
     clock.advance(ONE_NANO);
     assertEquals(1.0, alert.value());
@@ -60,7 +59,7 @@ class ScheduleTest {
     long remainder = TEN_DAYS.toNanos() % cycle.toNanos();
     assertEquals(GAP.toNanos(), remainder, "the arithmetic the test relies on");
 
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = Alerts.deterministic(GAP, FIRING, clock);
     clock.advance(TEN_DAYS);
     assertEquals(1.0, alert.value());
@@ -72,7 +71,7 @@ class ScheduleTest {
 
   @Test
   void aLongPauseLeavesTheDefaultScheduleOneTransitionAhead() {
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = SyntheticAlert.builder().build(clock);
     clock.advance(TEN_DAYS);
     double value = alert.value();

@@ -27,7 +27,7 @@ class ConcurrencyTest {
     ExecutorService pool = Executors.newFixedThreadPool(THREADS);
     try {
       for (int round = 0; round < 50; round++) {
-        FakeClock clock = new FakeClock(1_000_000_000L);
+        FakeClock clock = new FakeClock(Alerts.START);
         SyntheticAlert alert = SyntheticAlert.builder().build(clock);
         clock.advance(Duration.ofDays(10));
         CyclicBarrier startingGun = new CyclicBarrier(THREADS);

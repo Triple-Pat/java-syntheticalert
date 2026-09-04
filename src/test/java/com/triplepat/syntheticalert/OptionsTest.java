@@ -17,7 +17,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class OptionsTest {
-  private static final long START = 1_000_000_000L;
 
   @Test
   void defaultsMatchTheSiblingLibraries() {
@@ -58,19 +57,19 @@ class OptionsTest {
 
   @Test
   void theFirstFiringStartsOneSilentGapAfterConstruction() {
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = SyntheticAlert.builder().build(clock);
-    assertTrue(START + DEFAULT_MIN_INTERVAL.toNanos() <= alert.next);
-    assertTrue(alert.next <= START + DEFAULT_MAX_INTERVAL.toNanos());
+    assertTrue(Alerts.START + DEFAULT_MIN_INTERVAL.toNanos() <= alert.next);
+    assertTrue(alert.next <= Alerts.START + DEFAULT_MAX_INTERVAL.toNanos());
   }
 
   @Test
   void aZeroWidthWindowIsLegalAndExact() {
     // min == mean == max: every gap is exactly that long, for deterministic debugging.
-    FakeClock clock = new FakeClock(START);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert =
         Alerts.deterministic(Duration.ofMinutes(1), Duration.ofSeconds(1), clock);
-    assertEquals(START + Duration.ofMinutes(1).toNanos(), alert.next);
+    assertEquals(Alerts.START + Duration.ofMinutes(1).toNanos(), alert.next);
   }
 
   static Stream<Arguments> badOptions() {
