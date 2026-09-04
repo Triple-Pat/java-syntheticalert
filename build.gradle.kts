@@ -56,6 +56,12 @@ tasks.withType<JavaCompile>().configureEach {
     // The package is @NullMarked (package-info.java), which JSpecify defines
     // to cover every class in it; annotating each class again is noise.
     disable("AddNullMarkedToClass")
+    // Wants @CanIgnoreReturnValue on builder setters, which lives in
+    // error_prone_annotations: a second dependency for a stylistic hint.
+    disable("CanIgnoreReturnValueSuggester")
+    // Opinion check that wants `var` for every local. Explicit types read
+    // better in a small API and its tests.
+    disable("Varifier")
     // Enforces a Java 8 API floor. `options.release` above holds the real
     // floor, Java 17.
     disable("Java8ApiChecker")
