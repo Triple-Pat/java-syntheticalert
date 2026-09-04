@@ -17,7 +17,10 @@ version = "0.0.0"
 repositories { mavenCentral() }
 
 dependencies {
-  // The library has no runtime dependencies. These two run inside javac.
+  // The one dependency: four nullness annotations, a few kilobytes, nothing
+  // transitive. `api` because @NullMarked is part of the public contract and
+  // Kotlin callers read it. Everything else here runs inside javac or tests.
+  api(libs.jspecify)
   errorprone(libs.errorprone.core)
   errorprone(libs.nullaway)
 
@@ -31,11 +34,13 @@ java {
   withJavadocJar()
 }
 
-// The library's own package is null-annotated by convention: every reference
-// is non-null unless marked otherwise. There are no JSpecify annotations, so
-// there is no runtime dependency; NullAway enforces the convention at compile
-// time and a caller who passes null gets the JVM's own NullPointerException.
-nullaway { annotatedPackages.add("com.triplepat.syntheticalert") }
+// The module is @NullMarked (JSpecify): every reference is non-null unless
+// marked @Nullable. NullAway enforces that at compile time; a caller who
+// passes null anyway gets the JVM's own NullPointerException.
+nullaway {
+  annotatedPackages.add("com.triplepat.syntheticalert")
+  jspecifyMode.set(true)
+}
 
 tasks.withType<JavaCompile>().configureEach {
   // Compile against the Java 17 API whatever JDK runs the build; CI tests on
@@ -48,11 +53,8 @@ tasks.withType<JavaCompile>().configureEach {
     // Every Error Prone check is on, including the off-by-default ones. Turn a
     // check off here only with the reason next to it.
     allDisabledChecksAsWarnings.set(true)
-    // These two want JSpecify's @NullMarked on the package and class, which
-    // would be this library's only dependency. NullAway already treats the
-    // package as null-annotated (see `nullaway` above), so they buy nothing
-    // here. Revisit if consumers ask for JSpecify metadata.
-    disable("AddNullMarkedToPackageInfo")
+    // The package is @NullMarked (package-info.java), which JSpecify defines
+    // to cover every class in it; annotating each class again is noise.
     disable("AddNullMarkedToClass")
     // Enforces a Java 8 API floor. `options.release` above holds the real
     // floor, Java 17.

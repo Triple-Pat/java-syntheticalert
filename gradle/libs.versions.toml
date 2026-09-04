@@ -2,6 +2,7 @@
 [versions]
 errorprone = "2.50.0"
 nullaway = "0.14.1"
+jspecify = "1.0.1"
 googleJavaFormat = "1.36.1"
 junit = "6.1.3"
 errorpronePlugin = "5.1.1"
@@ -12,6 +13,7 @@ mavenPublishPlugin = "0.37.0"
 [libraries]
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 
 [plugins]

@@ -10,6 +10,10 @@
  * delivered alert becomes a check-in, and the timer raises an alarm if the alerts stop arriving,
  * which is the one failure your alerting system cannot report about itself.
  *
- * <p>The library owns no meter, starts no thread, and has no dependencies.
+ * <p>The library owns no meter, starts no thread, and depends on nothing but the JSpecify nullness
+ * annotations: everything in this package is non-null unless marked otherwise.
  */
+@NullMarked
 package com.triplepat.syntheticalert;
+
+import org.jspecify.annotations.NullMarked;
