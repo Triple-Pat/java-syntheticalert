@@ -6,18 +6,22 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 class OpenTelemetryTest {
   private static double latestValue(InMemoryMetricReader reader) {
-    MetricData metric = reader.collectAllMetrics().iterator().next();
+    Collection<MetricData> metrics = reader.collectAllMetrics();
+    assertEquals(1, metrics.size(), "exactly one metric");
+    MetricData metric = metrics.iterator().next();
     assertEquals("triplepat.synthetic.alert", metric.getName());
+    assertEquals(1, metric.getDoubleGaugeData().getPoints().size(), "exactly one point");
     return metric.getDoubleGaugeData().getPoints().iterator().next().getValue();
   }
 
   @Test
   void theReadmeSnippetFeedsAnObservableGauge() {
-    FakeClock clock = new FakeClock(1_000_000_000L);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = SyntheticAlert.builder().build(clock);
     InMemoryMetricReader reader = InMemoryMetricReader.create();
     SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();

@@ -61,8 +61,14 @@ Gauge.builder("triplepat.synthetic.alert", alert, SyntheticAlert::value)
         "Set to 1 when the synthetic alert should fire and 0 otherwise. "
             + "Alert on this metric and route the alert to a Triple Pat check-in "
             + "timer to continuously test your alerting pipeline.")
+    .strongReference(true)
     .register(registry);
 ```
+
+`strongReference(true)` matters. Micrometer holds a gauge's state object
+weakly by default, so if nothing else keeps the alert alive it is garbage
+collected and the gauge reports `NaN` from then on. With the strong
+reference the gauge owns the alert for as long as the registry lives.
 
 ### Prometheus Java client
 

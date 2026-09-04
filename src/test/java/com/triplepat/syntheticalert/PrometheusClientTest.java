@@ -19,7 +19,7 @@ class PrometheusClientTest {
 
   @Test
   void theReadmeSnippetDrivesAGaugeWithCallback() throws IOException {
-    FakeClock clock = new FakeClock(1_000_000_000L);
+    FakeClock clock = new FakeClock(Alerts.START);
     SyntheticAlert alert = SyntheticAlert.builder().build(clock);
     PrometheusRegistry registry = new PrometheusRegistry();
 
@@ -33,5 +33,7 @@ class PrometheusClientTest {
     assertTrue(scrape(registry).contains("triplepat_synthetic_alert 0.0"));
     clock.set(alert.next);
     assertTrue(scrape(registry).contains("triplepat_synthetic_alert 1.0"));
+    clock.set(alert.next);
+    assertTrue(scrape(registry).contains("triplepat_synthetic_alert 0.0"));
   }
 }
