@@ -27,6 +27,14 @@ dependencies {
   testImplementation(platform(libs.junit.bom))
   testImplementation("org.junit.jupiter:junit-jupiter")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  // The README's wiring snippets are compiled and run against the real
+  // clients. Test scope only: consumers never see these.
+  testImplementation(libs.micrometer.core)
+  testImplementation(libs.micrometer.prometheus)
+  testImplementation(libs.prometheus.core)
+  testImplementation(libs.prometheus.textformats)
+  testImplementation(libs.opentelemetry.sdk)
+  testImplementation(libs.opentelemetry.sdk.testing)
 }
 
 java {
