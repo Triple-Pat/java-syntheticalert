@@ -20,7 +20,9 @@ repositories { mavenCentral() }
 // which loads every plugin on its processor path before asking whether it is
 // enabled. The library still targets 17: the Java 17 CI leg compiles and tests
 // without Error Prone to prove the API floor, and the 21 and 25 legs carry the
-// lint.
+// lint. This reads the JVM running Gradle, which is also the JVM running javac
+// because this build deliberately configures no toolchain; `options.release`
+// alone pins the API floor. Revisit if a toolchain is ever added.
 val lintingJdk = JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)
 
 dependencies {
