@@ -1,0 +1,66 @@
+name: Lint and Test
+run-name: "Lint and Test: ${{ github.event.head_commit.message || github.event.pull_request.title }}"
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  ci:
+    name: Lint and Test (Java ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 17 is the API floor (options.release); 21 and 25 are the later LTS releases.
+        java-version: ["17", "21", "25"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+      # Caches Gradle and validates the committed wrapper jar's checksum.
+      - uses: gradle/actions/setup-gradle@v6
+
+      # --- Linting ---
+      - name: YAML Lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint
+      - name: Format (google-java-format, ktfmt)
+        run: ./gradlew spotlessCheck
+      # Error Prone and NullAway run inside javac at -Werror, so compiling is
+      # the lint step; javadoc runs doclint the same way.
+      - name: Compile (Error Prone, NullAway) and Javadoc
+        run: ./gradlew classes testClasses javadoc
+
+      # --- Tests ---
+      - name: Tests
+        run: ./gradlew test jacocoTestReport
+      # Feeds the README's Coveralls badge with measured coverage, so it
+      # runs before the coverage gate: the badge shows the real number even
+      # when the gate fails. Main only: the badge tracks main, and pull
+      # requests are held to the gate below rather than reported to
+      # Coveralls. One matrix leg only (the first, so the condition survives
+      # matrix edits), so Coveralls sees one report per commit. A Coveralls
+      # outage must not redden a run whose lint and tests passed, hence
+      # fail-on-error: false.
+      - name: Coveralls
+        if: github.ref == 'refs/heads/main' && strategy.job-index == 0
+        uses: coverallsapp/github-action@v2
+        with:
+          file: build/reports/jacoco/test/jacocoTestReport.xml
+          format: jacoco
+          fail-on-error: false
+      - name: Coverage gate
+        run: ./gradlew jacocoTestCoverageVerification
+
+      # --- Artifacts ---
+      - name: Build jars
+        run: ./gradlew jar sourcesJar javadocJar
+      # Proves the module descriptor rather than asserting it.
+      - name: Module descriptor
+        run: java -p build/libs/syntheticalert-0.0.0.jar --describe-module com.triplepat.syntheticalert
