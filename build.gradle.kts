@@ -75,9 +75,10 @@ tasks.test {
 
 tasks.jacocoTestReport { reports { xml.required.set(true) } }
 
-// The 100% gate is deliberately NOT wired into `check`: CI runs it as its own
-// step after the Coveralls upload, so the badge shows measured coverage even
-// when the gate fails.
+// The 100% gate is deliberately NOT wired into `check`, so that CI can run it
+// as its own step after the Coveralls upload and the badge shows measured
+// coverage even when the gate fails. Run it explicitly:
+// `./gradlew build jacocoTestCoverageVerification`.
 tasks.jacocoTestCoverageVerification {
   violationRules {
     rule {
