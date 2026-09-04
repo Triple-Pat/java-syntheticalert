@@ -12,6 +12,10 @@ import java.util.function.LongSupplier;
  * jobs or scrape cycles. As a nod to practicality the gap is truncated to the configured min and
  * max, which makes the process only roughly Poisson; widen the bounds to get closer.
  *
+ * <p>The schedule advances lazily: nothing happens until {@link #value()} is called, at which point
+ * every transition up to now is replayed, on {@link System#nanoTime()}. {@code value()} is safe to
+ * call from any number of threads; one instance per JVM is the intended use.
+ *
  * <p>Every duration is a {@link Duration}, so the unit lives in the code rather than in the
  * documentation. Nullness follows the package's {@code @NullMarked} contract: there are no runtime
  * null checks, and a {@code null} duration fails with the JVM's own {@link NullPointerException}.
@@ -36,8 +40,17 @@ public final class SyntheticAlert {
   final long maxNanos;
   final long firingNanos;
 
-  /** When the pending transition happens, in the clock's nanoseconds. */
-  final long next;
+  private final LongSupplier clock;
+  private final Object lock = new Object();
+
+  /** Whether the synthetic alert is firing. Guarded by {@code lock}. */
+  private boolean firing;
+
+  /**
+   * When the pending transition happens, in the clock's nanoseconds. Guarded by {@code lock};
+   * package-private so tests in this package can read it between calls.
+   */
+  long next;
 
   private SyntheticAlert(
       long meanNanos, long minNanos, long maxNanos, long firingNanos, LongSupplier clock) {
@@ -45,8 +58,60 @@ public final class SyntheticAlert {
     this.minNanos = minNanos;
     this.maxNanos = maxNanos;
     this.firingNanos = firingNanos;
+    this.clock = clock;
     // The first firing starts one silent gap after construction.
     next = clock.getAsLong() + Gap.truncatedExponential(meanNanos, minNanos, maxNanos);
+  }
+
+  /**
+   * Returns 1 if the synthetic alert should be firing right now and 0 otherwise. Replays every
+   * schedule transition between the last call and now, so the realized schedule is the same
+   * whatever the scrape cadence.
+   *
+   * @return {@code 1.0} while firing, {@code 0.0} otherwise
+   */
+  public double value() {
+    // Why carry state and replay transitions, rather than compute the state
+    // from the clock alone?
+    //
+    // A stateless answer to "is a firing in progress?" needs the firing times
+    // to be a pure function of wall-clock time. That is possible for a plain
+    // Poisson process, because it has independent increments: chop time into
+    // epochs, seed a PRNG from the epoch index, draw that epoch's arrivals, and
+    // check whether one falls within the last firing duration. It has a real
+    // attraction, too: every replica of a service would compute the same
+    // schedule and raise one alert instead of N.
+    //
+    // But the min and max bounds on the silent gap make each gap depend on
+    // where the previous firing ended, which destroys independent increments;
+    // epochs can no longer be generated in isolation. Thinning and back-filling
+    // a plain Poisson stream to fake the bounds would have to peek across epoch
+    // boundaries and would no longer have a distribution the tests can name.
+    // The bounds exist for practical reasons (the alert must visibly resolve;
+    // the check-in timer must not false-alarm), so we honor them exactly with
+    // an alternating renewal process: fixed firings, i.i.d. truncated-
+    // exponential gaps, and two fields of state.
+    //
+    // Replaying every missed transition, rather than jumping to the current
+    // state, keeps the realized schedule identical whatever the scrape cadence.
+    // It costs one loop iteration per elapsed transition, about fifty a day at
+    // the defaults, so even a scrape after a week of silence is trivial.
+    //
+    // System.nanoTime() is monotonic, so a wall-clock step neither skips nor
+    // repeats a transition. Its values are only meaningful as differences and
+    // may be negative or wrap, hence `now - next >= 0` rather than `now >= next`.
+    //
+    // The critical section is a few arithmetic operations with no blocking, so
+    // plain synchronization is the right tool; a scrape from many threads at
+    // once serializes for nanoseconds.
+    synchronized (lock) {
+      long now = clock.getAsLong();
+      while (now - next >= 0) {
+        firing = !firing;
+        next += firing ? firingNanos : Gap.truncatedExponential(meanNanos, minNanos, maxNanos);
+      }
+      return firing ? 1.0 : 0.0;
+    }
   }
 
   /**
