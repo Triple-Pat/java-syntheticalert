@@ -83,6 +83,10 @@ class OptionsTest {
         bad(b -> b.maxInterval(Duration.ZERO), "max interval must be positive, got PT0S"),
         bad(b -> b.firingDuration(Duration.ZERO), "firing duration must be positive, got PT0S"),
         bad(
+            b -> b.maxInterval(Duration.ofDays(200_000)),
+            "max interval must be at most PT2562047H47M16.854775807S (about 292 years), got"
+                + " PT4800000H"),
+        bad(
             b -> b.firingDuration(Duration.ofHours(1)),
             "firing duration (PT1H) must be less than the mean interval (PT1H)"),
         bad(

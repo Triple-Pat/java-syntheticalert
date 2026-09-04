@@ -39,11 +39,12 @@ public final class SyntheticAlert {
   /** When the pending transition happens, in the clock's nanoseconds. */
   final long next;
 
-  private SyntheticAlert(Builder b, LongSupplier clock) {
-    meanNanos = b.meanInterval.toNanos();
-    minNanos = b.minInterval.toNanos();
-    maxNanos = b.maxInterval.toNanos();
-    firingNanos = b.firingDuration.toNanos();
+  private SyntheticAlert(
+      long meanNanos, long minNanos, long maxNanos, long firingNanos, LongSupplier clock) {
+    this.meanNanos = meanNanos;
+    this.minNanos = minNanos;
+    this.maxNanos = maxNanos;
+    this.firingNanos = firingNanos;
     // The first firing starts one silent gap after construction.
     next = clock.getAsLong() + Gap.truncatedExponential(meanNanos, minNanos, maxNanos);
   }
@@ -71,6 +72,9 @@ public final class SyntheticAlert {
    * is the same as {@link #create()}.
    */
   public static final class Builder {
+    /** The longest duration that fits in a long of nanoseconds: about 292 years. */
+    private static final Duration LONGEST = Duration.ofNanos(Long.MAX_VALUE);
+
     private Duration meanInterval = DEFAULT_MEAN_INTERVAL;
     private Duration minInterval = DEFAULT_MIN_INTERVAL;
     private Duration maxInterval = DEFAULT_MAX_INTERVAL;
@@ -135,8 +139,9 @@ public final class SyntheticAlert {
      * scrape time.
      *
      * @return the configured synthetic alert
-     * @throws IllegalArgumentException if a duration is not positive, the firing duration is not
-     *     shorter than the mean interval, or the min and max intervals do not bracket the mean
+     * @throws IllegalArgumentException if a duration is not positive or is too long to count in
+     *     nanoseconds (about 292 years), the firing duration is not shorter than the mean interval,
+     *     or the min and max intervals do not bracket the mean
      */
     public SyntheticAlert build() {
       return build(System::nanoTime);
@@ -145,10 +150,10 @@ public final class SyntheticAlert {
     // Package-private so tests can inject a clock. The public API has no clock
     // option: the schedule always runs on System.nanoTime().
     SyntheticAlert build(LongSupplier clock) {
-      requirePositive("mean interval", meanInterval);
-      requirePositive("min interval", minInterval);
-      requirePositive("max interval", maxInterval);
-      requirePositive("firing duration", firingDuration);
+      long meanNanos = nanos("mean interval", meanInterval);
+      long minNanos = nanos("min interval", minInterval);
+      long maxNanos = nanos("max interval", maxInterval);
+      long firingNanos = nanos("firing duration", firingDuration);
       if (firingDuration.compareTo(meanInterval) >= 0) {
         throw new IllegalArgumentException(
             "firing duration ("
@@ -167,13 +172,19 @@ public final class SyntheticAlert {
                 + meanInterval
                 + ")");
       }
-      return new SyntheticAlert(this, clock);
+      return new SyntheticAlert(meanNanos, minNanos, maxNanos, firingNanos, clock);
     }
 
-    private static void requirePositive(String name, Duration d) {
+    /** Checks the duration is positive and fits in nanoseconds, and converts it. */
+    private static long nanos(String name, Duration d) {
       if (d.compareTo(Duration.ZERO) <= 0) {
         throw new IllegalArgumentException(name + " must be positive, got " + d);
       }
+      if (d.compareTo(LONGEST) > 0) {
+        throw new IllegalArgumentException(
+            name + " must be at most " + LONGEST + " (about 292 years), got " + d);
+      }
+      return d.toNanos();
     }
   }
 }
