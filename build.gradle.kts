@@ -59,6 +59,10 @@ tasks.withType<JavaCompile>().configureEach {
     // Wants @CanIgnoreReturnValue on builder setters, which lives in
     // error_prone_annotations: a second dependency for a stylistic hint.
     disable("CanIgnoreReturnValueSuggester")
+    // Wants @Var from error_prone_annotations on every reassigned local; the
+    // same second dependency, and a `final`-by-default discipline the small
+    // codebase does not need.
+    disable("Var")
     // Opinion check that wants `var` for every local. Explicit types read
     // better in a small API and its tests.
     disable("Varifier")
