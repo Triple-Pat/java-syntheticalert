@@ -1,7 +1,5 @@
 package com.triplepat.syntheticalert;
 
-import static com.triplepat.syntheticalert.SyntheticAlert.DEFAULT_FIRING_DURATION;
-import static com.triplepat.syntheticalert.SyntheticAlert.DEFAULT_MAX_INTERVAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,11 +77,7 @@ class ScheduleTest {
     clock.advance(TEN_DAYS);
     double value = alert.value();
     assertTrue(value == 0.0 || value == 1.0, "value " + value);
-    long ahead = alert.next - clock.now();
-    assertTrue(ahead > 0, "the pending transition is in the future");
-    assertTrue(
-        ahead <= DEFAULT_MAX_INTERVAL.plus(DEFAULT_FIRING_DURATION).toNanos(),
-        "the pending transition is at most one cycle away");
+    Alerts.assertOneTransitionAhead(alert, clock.now(), value);
   }
 
   @Test

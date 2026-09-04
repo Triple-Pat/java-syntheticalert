@@ -1,7 +1,5 @@
 package com.triplepat.syntheticalert;
 
-import static com.triplepat.syntheticalert.SyntheticAlert.DEFAULT_FIRING_DURATION;
-import static com.triplepat.syntheticalert.SyntheticAlert.DEFAULT_MAX_INTERVAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,11 +44,7 @@ class ConcurrencyTest {
           observed.add(f.get());
         }
         assertEquals(1, observed.size(), "round " + round + ": every thread sees the same state");
-        long ahead = alert.next - clock.now();
-        assertTrue(ahead > 0, "round " + round + ": the pending transition is in the future");
-        assertTrue(
-            ahead <= DEFAULT_MAX_INTERVAL.plus(DEFAULT_FIRING_DURATION).toNanos(),
-            "round " + round + ": the schedule is at most one cycle ahead");
+        Alerts.assertOneTransitionAhead(alert, clock.now(), observed.iterator().next());
       }
     } finally {
       pool.shutdownNow();
@@ -58,7 +52,10 @@ class ConcurrencyTest {
   }
 
   @Test
-  void concurrentScrapesOnTheRealClockOnlyEverSeeZeroOrOne() throws Exception {
+  void concurrentScrapesOnTheRealClockLeaveTheScheduleOneTransitionAhead() throws Exception {
+    // Millisecond-scale durations on the real clock, eight threads hammering
+    // value(). A lost update or an interleaved replay would leave the pending
+    // transition further ahead than one firing or one gap.
     SyntheticAlert alert =
         SyntheticAlert.builder()
             .meanInterval(Duration.ofMillis(2))
@@ -84,6 +81,12 @@ class ConcurrencyTest {
       for (Future<Boolean> f : pool.invokeAll(scrapers)) {
         assertTrue(f.get());
       }
+      // Only the upper bound: on the real clock a transition can fall between
+      // reading `next` and reading the time, so a lower bound would flake.
+      double value = alert.value();
+      long ahead = alert.next - System.nanoTime();
+      long bound = value == 1.0 ? alert.firingNanos : alert.maxNanos;
+      assertTrue(ahead <= bound, "pending transition " + ahead + " ns ahead exceeds " + bound);
     } finally {
       pool.shutdownNow();
     }
