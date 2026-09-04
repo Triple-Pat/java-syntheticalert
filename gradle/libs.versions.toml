@@ -1,0 +1,21 @@
+# Every version in one place. Look versions up on Maven Central; never guess.
+[versions]
+errorprone = "2.50.0"
+nullaway = "0.14.1"
+googleJavaFormat = "1.36.1"
+junit = "6.1.3"
+errorpronePlugin = "5.1.1"
+nullawayPlugin = "3.2.0"
+spotlessPlugin = "8.10.1"
+mavenPublishPlugin = "0.37.0"
+
+[libraries]
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+
+[plugins]
+errorprone = { id = "net.ltgt.errorprone", version.ref = "errorpronePlugin" }
+nullaway = { id = "net.ltgt.nullaway", version.ref = "nullawayPlugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotlessPlugin" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublishPlugin" }
