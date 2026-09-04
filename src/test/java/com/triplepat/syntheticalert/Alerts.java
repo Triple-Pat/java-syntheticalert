@@ -37,8 +37,16 @@ final class Alerts {
    * most the max interval away). One extra toggle from an interleaved replay breaks this.
    */
   static void assertOneTransitionAhead(SyntheticAlert alert, long now, double value) {
+    assertTrue(alert.next - now > 0, "the pending transition is in the future");
+    assertAtMostOneTransitionAhead(alert, now, value);
+  }
+
+  /**
+   * The upper half of {@link #assertOneTransitionAhead}, for the real clock, where a transition can
+   * fall between reading {@code next} and reading the time and a lower bound would flake.
+   */
+  static void assertAtMostOneTransitionAhead(SyntheticAlert alert, long now, double value) {
     long ahead = alert.next - now;
-    assertTrue(ahead > 0, "the pending transition is in the future");
     long bound = value == 1.0 ? alert.firingNanos : alert.maxNanos;
     assertTrue(ahead <= bound, "pending transition " + ahead + " ns ahead exceeds " + bound);
   }

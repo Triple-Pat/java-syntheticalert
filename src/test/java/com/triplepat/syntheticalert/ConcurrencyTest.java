@@ -81,12 +81,8 @@ class ConcurrencyTest {
       for (Future<Boolean> f : pool.invokeAll(scrapers)) {
         assertTrue(f.get());
       }
-      // Only the upper bound: on the real clock a transition can fall between
-      // reading `next` and reading the time, so a lower bound would flake.
       double value = alert.value();
-      long ahead = alert.next - System.nanoTime();
-      long bound = value == 1.0 ? alert.firingNanos : alert.maxNanos;
-      assertTrue(ahead <= bound, "pending transition " + ahead + " ns ahead exceeds " + bound);
+      Alerts.assertAtMostOneTransitionAhead(alert, System.nanoTime(), value);
     } finally {
       pool.shutdownNow();
     }

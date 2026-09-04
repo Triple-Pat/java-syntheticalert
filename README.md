@@ -77,8 +77,10 @@ calls back at scrape time. `register()` with no argument uses the default
 registry:
 
 ```java
+import com.triplepat.syntheticalert.SyntheticAlert;
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 
+SyntheticAlert alert = SyntheticAlert.create();
 GaugeWithCallback.builder()
     .name("triplepat_synthetic_alert")
     .help("Set to 1 when the synthetic alert should fire and 0 otherwise.")
@@ -137,6 +139,10 @@ There is no magic here: one line is a serviceable substitute, firing for
 the first ten minutes of every hour:
 
 ```java
+import io.micrometer.core.instrument.Gauge;
+import java.time.LocalTime;
+import java.time.ZoneId;
+
 Gauge.builder(
         "triplepat.synthetic.alert",
         () -> LocalTime.now(ZoneId.systemDefault()).getMinute() < 10 ? 1 : 0)
