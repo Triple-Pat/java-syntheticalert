@@ -36,8 +36,9 @@ final class Gap {
     // Mathematically gap is already in [min, max): this is not clamping a
     // distribution, it corrects the few ulps by which exp followed by log can
     // miss a round trip, so the bounds hold literally rather than to within
-    // floating-point rounding. Rounding to whole nanoseconds cannot leave the
-    // window, because both bounds are whole nanoseconds.
-    return Math.round(Math.min(Math.max(gap, (double) min), (double) max));
+    // floating-point rounding. Round first and clamp in long arithmetic, so
+    // the bounds hold for every long even above 2^53 ns, where a long is no
+    // longer exactly representable as a double.
+    return Math.min(Math.max(Math.round(gap), min), max);
   }
 }
