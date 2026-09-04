@@ -133,11 +133,21 @@ class GapTest {
   }
 
   private static double[] sample(double mean, double min, double max) {
-    double[] out = new double[N];
-    for (int i = 0; i < N; i++) {
-      out[i] = (double) Gap.truncatedExponential((long) mean, (long) min, (long) max);
+    return LongStream.of(draws((long) mean, (long) min, (long) max)).asDoubleStream().toArray();
+  }
+
+  /**
+   * Best of three K-S attempts: a correct sampler fails one about 1% of the time by construction.
+   */
+  private static void assertGapsFollowTheTruncatedExponential(double mean, double min, double max) {
+    double best = Double.MAX_VALUE;
+    for (int attempt = 0; attempt < 3; attempt++) {
+      best = Math.min(best, ksStatistic(sample(mean, min, max), mean, min, max));
+      if (best <= KS_CRITICAL) {
+        return;
+      }
     }
-    return out;
+    throw new AssertionError("K-S statistic " + best + " exceeds " + KS_CRITICAL + " three times");
   }
 
   /** Evenly spaced quantiles: a noise-free stand-in for a sample from a distribution. */
@@ -151,32 +161,23 @@ class GapTest {
 
   @Test
   void theGapsAreMemoryless() {
-    // A correct sampler fails one K-S attempt about 1% of the time by
-    // construction; three attempts put the false-failure rate near 1e-6. The
-    // wrong distributions below fail every attempt.
-    double best = Double.MAX_VALUE;
-    for (int attempt = 0; attempt < 3; attempt++) {
-      best = Math.min(best, ksStatistic(sample(MEAN, MIN, MAX), MEAN, MIN, MAX));
-      if (best <= KS_CRITICAL) {
-        return;
-      }
-    }
-    throw new AssertionError("K-S statistic " + best + " exceeds " + KS_CRITICAL + " three times");
+    assertGapsFollowTheTruncatedExponential(MEAN, MIN, MAX);
   }
 
   @Test
   void theShapeHoldsInTheFarTailWhereTheSurvivalFunctionUnderflows() {
-    double mean = (double) nanos(1);
-    double min = (double) nanos(1);
-    double max = (double) nanos(1_000_000);
-    double best = Double.MAX_VALUE;
-    for (int attempt = 0; attempt < 3; attempt++) {
-      best = Math.min(best, ksStatistic(sample(mean, min, max), mean, min, max));
-      if (best <= KS_CRITICAL) {
-        return;
-      }
-    }
-    throw new AssertionError("K-S statistic " + best + " exceeds " + KS_CRITICAL + " three times");
+    assertGapsFollowTheTruncatedExponential(
+        (double) nanos(1), (double) nanos(1), (double) nanos(1_000_000));
+  }
+
+  @Test
+  void theTruncatedCdfMatchesHandComputedValues() {
+    // Anchors the test's own CDF independently of the quantile helper: 0 at
+    // min, 1 at max, and at x = mean under the defaults
+    // (e^(-1/6) - e^(-1)) / (e^(-1/6) - e^(-2)) = 0.6730 to four places.
+    assertEquals(0.0, truncatedCdf(MIN, MEAN, MIN, MAX), 1e-12);
+    assertEquals(1.0, truncatedCdf(MAX, MEAN, MIN, MAX), 1e-12);
+    assertEquals(0.6730, truncatedCdf(MEAN, MEAN, MIN, MAX), 5e-5);
   }
 
   @Test
