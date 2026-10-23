@@ -151,7 +151,7 @@ publishing {
         name.set("syntheticalert")
         description.set(
           "A time-based callback to drive a synthetic alert metric, so a Triple Pat " +
-            "check-in timer can verify your alerting pipeline end to end."
+            "check-in timer can verify your alerting pipeline end to end.",
         )
         inceptionYear.set("2026")
         url.set("https://github.com/Triple-Pat/java-syntheticalert")
