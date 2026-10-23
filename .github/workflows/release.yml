@@ -82,9 +82,11 @@ jobs:
             -F "bundle=@bundle.zip;type=application/octet-stream" \
             "${api}/upload?publishingType=USER_MANAGED&name=syntheticalert-${TAG}")
           echo "deployment ${id}"
-          # Validation usually takes under a minute; give it ten.
+          # Validation usually takes under a minute; give it ten. The upload
+          # has already happened, so a transient error here must not fail the
+          # job: a re-run would upload a second deployment.
           for _ in $(seq 60); do
-            status=$(curl --fail-with-body -sS -X POST \
+            status=$(curl --fail-with-body -sS --retry 5 --retry-all-errors -X POST \
               -H "Authorization: Bearer ${auth}" \
               "${api}/status?id=${id}")
             state=$(jq -r .deploymentState <<< "${status}")

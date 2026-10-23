@@ -35,16 +35,20 @@ jobs:
           cache-disabled: ${{ startsWith(github.ref, 'refs/tags/') }}
 
       # --- Linting ---
+      # The three linters below run tools their actions fetch at the latest
+      # version, so they skip release tags: the leg that builds the uploaded
+      # files runs only pinned code, and the tagged commit passed them on main.
       - name: YAML Lint
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
         with:
           config_file: .yamllint
       # JDK-independent, so one leg is enough for these two.
       - name: GitHub Actions Lint
-        if: strategy.job-index == 0
+        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
         uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
       - name: GitHub Actions Security Lint
-        if: strategy.job-index == 0
+        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
         run: pipx run zizmor --format=github .
         env:
           GH_TOKEN: ${{ github.token }}
