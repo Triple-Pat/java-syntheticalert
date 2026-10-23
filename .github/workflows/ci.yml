@@ -10,8 +10,32 @@ on:
 permissions:
   contents: read
 jobs:
+  # These run whatever version of their tool is newest: rising standards
+  # should reach this repo as soon as they ship, at the price of an occasional
+  # hurried fix. They get their own job, which the build waits for, because
+  # code fetched at its latest version must never share a runner with the
+  # release files: any step in a job can replace that job's uploaded artifact.
+  lint:
+    name: Workflow lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: YAML Lint
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
+        with:
+          config_file: .yamllint
+      - name: GitHub Actions Lint
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+      - name: GitHub Actions Security Lint
+        run: pipx run zizmor --format=github .
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   ci:
     name: Lint and Test (Java ${{ matrix.java-version }})
+    needs: lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -90,23 +114,3 @@ jobs:
           name: staging-repo
           path: build/staging-repo/
           if-no-files-found: error
-
-      # --- Workflow lints ---
-      # These run whatever version of their tool is newest: rising standards
-      # should reach this repo as soon as they ship, at the price of an
-      # occasional hurried fix. They gate releases like everything else, and
-      # they run last so that on a tag, nothing fetched at its latest version
-      # runs before the staged files above are built and uploaded.
-      - name: YAML Lint
-        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
-        with:
-          config_file: .yamllint
-      # JDK-independent, so one leg is enough for these two.
-      - name: GitHub Actions Lint
-        if: strategy.job-index == 0
-        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
-      - name: GitHub Actions Security Lint
-        if: strategy.job-index == 0
-        run: pipx run zizmor --format=github .
-        env:
-          GH_TOKEN: ${{ github.token }}
