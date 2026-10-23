@@ -82,10 +82,13 @@ EOF
 m2="${work}/m2"
 mvn -B -q -f "${work}/maven/pom.xml" -Dmaven.repo.local="${m2}" \
   dependency:build-classpath -Dmdep.outputFile="${work}/maven/cp.txt"
-# Once a version is on Central, Central could serve it too; insist the jar
-# came from the staged files.
-grep -Fx "syntheticalert-${version}.jar>staging=" \
-  "${m2}/com/triplepat/syntheticalert/${version}/_remote.repositories"
+# Once a version is on Central, Central could serve it too; insist that what
+# Maven resolved is byte for byte what was staged. (Maven's own record of the
+# source repository, _remote.repositories, changes format between releases.)
+for f in "syntheticalert-${version}.jar" "syntheticalert-${version}.pom"; do
+  cmp "${staging}/com/triplepat/syntheticalert/${version}/${f}" \
+    "${m2}/com/triplepat/syntheticalert/${version}/${f}"
+done
 cp=$(cat "${work}/maven/cp.txt")
 
 javac -d "${work}/maven/classpath" -cp "${cp}" "${work}/src/classpath/Main.java"
