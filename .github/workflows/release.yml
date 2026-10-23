@@ -6,10 +6,8 @@ on:
       - "v*"
 permissions: {}
 jobs:
-  # A tag on a commit that fails to compile (Error Prone, NullAway), its
-  # tests, or the coverage gate never reaches Central. CI also stages and
-  # checks the files this workflow uploads. The YAML and Actions linters skip
-  # tags (see ci.yml) and do not gate a release.
+  # A tag on a commit that fails lint or tests never reaches Central. CI also
+  # stages and checks the files this workflow uploads.
   ci:
     name: Lint and Test
     uses: ./.github/workflows/ci.yml

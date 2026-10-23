@@ -35,24 +35,6 @@ jobs:
           cache-disabled: ${{ startsWith(github.ref, 'refs/tags/') }}
 
       # --- Linting ---
-      # The three linters below run tools their actions fetch at the latest
-      # version, so they skip release tags: the leg that builds the uploaded
-      # files runs only pinned code. They check workflow files, not the
-      # library, so they do not gate a release; main and PR runs enforce them.
-      - name: YAML Lint
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
-        with:
-          config_file: .yamllint
-      # JDK-independent, so one leg is enough for these two.
-      - name: GitHub Actions Lint
-        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
-        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
-      - name: GitHub Actions Security Lint
-        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
-        run: pipx run zizmor --format=github .
-        env:
-          GH_TOKEN: ${{ github.token }}
       # google-java-format needs a newer JDK than the 17 floor to run, so the
       # check runs once, on the newest leg; the code it formats still targets 17.
       - name: Format (google-java-format, ktfmt)
@@ -108,3 +90,23 @@ jobs:
           name: staging-repo
           path: build/staging-repo/
           if-no-files-found: error
+
+      # --- Workflow lints ---
+      # These run whatever version of their tool is newest: rising standards
+      # should reach this repo as soon as they ship, at the price of an
+      # occasional hurried fix. They gate releases like everything else, and
+      # they run last so that on a tag, nothing fetched at its latest version
+      # runs before the staged files above are built and uploaded.
+      - name: YAML Lint
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
+        with:
+          config_file: .yamllint
+      # JDK-independent, so one leg is enough for these two.
+      - name: GitHub Actions Lint
+        if: strategy.job-index == 0
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+      - name: GitHub Actions Security Lint
+        if: strategy.job-index == 0
+        run: pipx run zizmor --format=github .
+        env:
+          GH_TOKEN: ${{ github.token }}
