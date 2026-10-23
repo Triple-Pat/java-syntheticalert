@@ -1,0 +1,129 @@
+name: Release
+run-name: "Release ${{ github.ref_name }}"
+on:
+  push:
+    tags:
+      - "v*"
+permissions: {}
+jobs:
+  # A tag on a commit that fails lint or tests never reaches Central. CI also
+  # stages and checks the files this workflow uploads.
+  ci:
+    name: Lint and Test
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  # Uploads a deployment that Central validates but does not publish; it
+  # reaches Maven Central only when a maintainer clicks Publish on
+  # https://central.sonatype.com/publishing/deployments. Central has no
+  # trusted publishing, so this job holds a Portal user token and the
+  # release-signing key, and for that reason it checks out nothing and runs
+  # no build: it signs and uploads the files CI checked, with gpg and curl.
+  publish:
+    name: Upload to the Central Portal
+    needs: ci
+    runs-on: ubuntu-latest
+    # The token and key are secrets of this environment and no other.
+    environment:
+      name: maven-central
+      url: https://central.sonatype.com/publishing/deployments
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: staging-repo
+          path: staging/
+      - name: Check the tag names the staged version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          dir="staging/com/triplepat/syntheticalert/${TAG#v}"
+          if [ ! -d "${dir}" ]; then
+            echo "::error::tag ${TAG} does not match the staged version: $(ls staging/com/triplepat/syntheticalert)"
+            exit 1
+          fi
+      # Central requires a detached signature beside every file; the
+      # checksums it also requires came from Gradle when CI staged the files.
+      # The key lives only in a throwaway keyring for this step.
+      - name: Sign and bundle
+        env:
+          TAG: ${{ github.ref_name }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          printf '%s\n' "${SIGNING_KEY}" | gpg --batch --import
+          cd staging
+          dir="com/triplepat/syntheticalert/${TAG#v}"
+          for f in "${dir}"/*.jar "${dir}"/*.pom "${dir}"/*.module; do
+            printf '%s' "${SIGNING_KEY_PASSWORD}" |
+              gpg --batch --pinentry-mode loopback --passphrase-fd 0 --armor --detach-sign "${f}"
+            gpg --batch --verify "${f}.asc" "${f}"
+          done
+          # The version directory only: the bundle names one release, and
+          # Central rebuilds maven-metadata.xml itself.
+          zip -r ../bundle.zip "${dir}"
+          unzip -l ../bundle.zip
+      - name: Upload and wait for validation
+        env:
+          TAG: ${{ github.ref_name }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        run: |
+          auth=$(printf '%s:%s' "${MAVEN_CENTRAL_USERNAME}" "${MAVEN_CENTRAL_TOKEN}" | base64 -w0)
+          echo "::add-mask::${auth}"
+          api=https://central.sonatype.com/api/v1/publisher
+          # USER_MANAGED: Central validates the deployment and then waits for
+          # a person to publish it.
+          id=$(curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${auth}" \
+            -F "bundle=@bundle.zip;type=application/octet-stream" \
+            "${api}/upload?publishingType=USER_MANAGED&name=syntheticalert-${TAG}")
+          echo "deployment ${id}"
+          # Validation usually takes under a minute; give it ten.
+          for _ in $(seq 60); do
+            status=$(curl --fail-with-body -sS -X POST \
+              -H "Authorization: Bearer ${auth}" \
+              "${api}/status?id=${id}")
+            state=$(jq -r .deploymentState <<< "${status}")
+            echo "${state}"
+            case "${state}" in
+              VALIDATED)
+                echo "::notice::deployment ${id} validated; publish it at https://central.sonatype.com/publishing/deployments"
+                exit 0
+                ;;
+              FAILED)
+                jq . <<< "${status}"
+                echo "::error::Central rejected deployment ${id}"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "::error::deployment ${id} still ${state} after ten minutes"
+          exit 1
+
+  # Its own job, after the upload, so a failure here re-runs alone instead of
+  # uploading a second deployment. Draft, so the release notes get a review
+  # before anyone sees them; publish it once Central has published.
+  draft-release:
+    name: Draft the GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: staging-repo
+          path: staging/
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          dir="staging/com/triplepat/syntheticalert/${TAG#v}"
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft --verify-tag --title "${TAG}" --notes "" \
+            "${dir}"/*.jar "${dir}"/*.pom
