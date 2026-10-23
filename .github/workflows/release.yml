@@ -6,8 +6,10 @@ on:
       - "v*"
 permissions: {}
 jobs:
-  # A tag on a commit that fails lint or tests never reaches Central. CI also
-  # stages and checks the files this workflow uploads.
+  # A tag on a commit that fails to compile (Error Prone, NullAway), its
+  # tests, or the coverage gate never reaches Central. CI also stages and
+  # checks the files this workflow uploads. The YAML and Actions linters skip
+  # tags (see ci.yml) and do not gate a release.
   ci:
     name: Lint and Test
     uses: ./.github/workflows/ci.yml
@@ -86,10 +88,12 @@ jobs:
           # has already happened, so a transient error here must not fail the
           # job: a re-run would upload a second deployment.
           for _ in $(seq 60); do
-            status=$(curl --fail-with-body -sS --retry 5 --retry-all-errors -X POST \
+            # -o, not stdout: curl truncates the file before each retry, so a
+            # failed attempt's error page cannot precede the JSON.
+            curl --fail-with-body -sS --retry 5 --retry-all-errors -X POST \
               -H "Authorization: Bearer ${auth}" \
-              "${api}/status?id=${id}")
-            state=$(jq -r .deploymentState <<< "${status}")
+              -o status.json "${api}/status?id=${id}"
+            state=$(jq -r .deploymentState status.json)
             echo "${state}"
             case "${state}" in
               VALIDATED)
@@ -97,7 +101,7 @@ jobs:
                 exit 0
                 ;;
               FAILED)
-                jq . <<< "${status}"
+                jq . status.json
                 echo "::error::Central rejected deployment ${id}"
                 exit 1
                 ;;
