@@ -1,4 +1,4 @@
-[![Lint and Test](https://github.com/Triple-Pat/java-syntheticalert/actions/workflows/ci.yml/badge.svg)](https://github.com/Triple-Pat/java-syntheticalert/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/Triple-Pat/java-syntheticalert/badge.svg?branch=main)](https://coveralls.io/github/Triple-Pat/java-syntheticalert?branch=main)
+[![Maven Central](https://img.shields.io/maven-central/v/com.triplepat/syntheticalert)](https://central.sonatype.com/artifact/com.triplepat/syntheticalert) [![javadoc](https://javadoc.io/badge2/com.triplepat/syntheticalert/javadoc.svg)](https://javadoc.io/doc/com.triplepat/syntheticalert) [![Lint and Test](https://github.com/Triple-Pat/java-syntheticalert/actions/workflows/ci.yml/badge.svg)](https://github.com/Triple-Pat/java-syntheticalert/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/Triple-Pat/java-syntheticalert/badge.svg?branch=main)](https://coveralls.io/github/Triple-Pat/java-syntheticalert?branch=main)
 
 # java-syntheticalert
 
@@ -27,7 +27,7 @@ to tell you so. An example alert rule and Alertmanager route are below.
 Gradle:
 
 ```kotlin
-implementation("com.triplepat:syntheticalert:VERSION")
+implementation("com.triplepat:syntheticalert:0.1.0")
 ```
 
 Maven:
@@ -36,7 +36,7 @@ Maven:
 <dependency>
   <groupId>com.triplepat</groupId>
   <artifactId>syntheticalert</artifactId>
-  <version>VERSION</version>
+  <version>0.1.0</version>
 </dependency>
 ```
 
