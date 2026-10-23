@@ -6,8 +6,8 @@ plugins {
   jacoco
   alias(libs.plugins.errorprone)
   alias(libs.plugins.nullaway)
+  `maven-publish`
   alias(libs.plugins.spotless)
-  alias(libs.plugins.mavenPublish)
 }
 
 group = "com.triplepat"
@@ -139,37 +139,47 @@ spotless {
   }
 }
 
-// Publishing is configured but not exercised: no tag and no Central upload
-// until go-syntheticalert has proven out in production.
-mavenPublishing {
-  publishToMavenCentral(automaticRelease = true)
-  signAllPublications()
-  coordinates("com.triplepat", "syntheticalert", version.toString())
-  pom {
-    name.set("syntheticalert")
-    description.set(
-      "A time-based callback to drive a synthetic alert metric, so a Triple Pat " +
-        "check-in timer can verify your alerting pipeline end to end."
-    )
-    inceptionYear.set("2026")
-    url.set("https://github.com/Triple-Pat/java-syntheticalert")
-    licenses {
-      license {
-        name.set("The Apache License, Version 2.0")
-        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+// CI publishes into build/staging-repo, unsigned, and checks the result from
+// clean consumer projects. On a release tag, the release workflow signs and
+// uploads exactly those files to the Central Portal; it never runs Gradle.
+publishing {
+  publications {
+    create<MavenPublication>("maven") {
+      artifactId = "syntheticalert"
+      from(components["java"])
+      pom {
+        name.set("syntheticalert")
+        description.set(
+          "A time-based callback to drive a synthetic alert metric, so a Triple Pat " +
+            "check-in timer can verify your alerting pipeline end to end."
+        )
+        inceptionYear.set("2026")
+        url.set("https://github.com/Triple-Pat/java-syntheticalert")
+        licenses {
+          license {
+            name.set("The Apache License, Version 2.0")
+            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+          }
+        }
+        developers {
+          developer {
+            id.set("triplepat")
+            name.set("Triple Pat")
+            url.set("https://triplepat.com")
+          }
+        }
+        scm {
+          url.set("https://github.com/Triple-Pat/java-syntheticalert")
+          connection.set("scm:git:git://github.com/Triple-Pat/java-syntheticalert.git")
+          developerConnection.set("scm:git:ssh://git@github.com/Triple-Pat/java-syntheticalert.git")
+        }
       }
     }
-    developers {
-      developer {
-        id.set("triplepat")
-        name.set("Triple Pat")
-        url.set("https://triplepat.com")
-      }
-    }
-    scm {
-      url.set("https://github.com/Triple-Pat/java-syntheticalert")
-      connection.set("scm:git:git://github.com/Triple-Pat/java-syntheticalert.git")
-      developerConnection.set("scm:git:ssh://git@github.com/Triple-Pat/java-syntheticalert.git")
+  }
+  repositories {
+    maven {
+      name = "staging"
+      url = uri(layout.buildDirectory.dir("staging-repo"))
     }
   }
 }

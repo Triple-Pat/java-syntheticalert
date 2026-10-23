@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+  # The release workflow runs this whole suite before it publishes.
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -18,19 +20,39 @@ jobs:
         # Coveralls upload. 17 is the API floor (options.release).
         java-version: ["25", "21", "17"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java-version }}
-      # Caches Gradle and validates the committed wrapper jar's checksum.
-      - uses: gradle/actions/setup-gradle@v6
+      # Caches Gradle and validates the committed wrapper jar's checksum. No
+      # cache on release tags: the published jars are built here, and nothing
+      # an earlier run could have written may run beside them.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: ${{ startsWith(github.ref, 'refs/tags/') }}
 
       # --- Linting ---
+      # The three linters below run tools their actions fetch at the latest
+      # version, so they skip release tags: the leg that builds the uploaded
+      # files runs only pinned code. They check workflow files, not the
+      # library, so they do not gate a release; main and PR runs enforce them.
       - name: YAML Lint
-        uses: ibiqlik/action-yamllint@v3
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
         with:
           config_file: .yamllint
+      # JDK-independent, so one leg is enough for these two.
+      - name: GitHub Actions Lint
+        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+      - name: GitHub Actions Security Lint
+        if: strategy.job-index == 0 && !startsWith(github.ref, 'refs/tags/')
+        run: pipx run zizmor --format=github .
+        env:
+          GH_TOKEN: ${{ github.token }}
       # google-java-format needs a newer JDK than the 17 floor to run, so the
       # check runs once, on the newest leg; the code it formats still targets 17.
       - name: Format (google-java-format, ktfmt)
@@ -56,7 +78,7 @@ jobs:
       # fail-on-error: false.
       - name: Coveralls
         if: github.ref == 'refs/heads/main' && strategy.job-index == 0
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           file: build/reports/jacoco/test/jacocoTestReport.xml
           format: jacoco
@@ -65,12 +87,24 @@ jobs:
         run: ./gradlew jacocoTestCoverageVerification
 
       # --- Artifacts ---
-      - name: Build jars
-        run: ./gradlew jar sourcesJar javadocJar
-      # Proves the module descriptor rather than asserting it. The main jar is
-      # found by name so a version bump cannot break the step; the sources and
-      # javadoc jars must stay off the module path.
-      - name: Module descriptor
-        run: |
-          jar=$(ls build/libs/syntheticalert-*.jar | grep -v -e '-sources' -e '-javadoc')
-          java -p "$jar" --describe-module com.triplepat.syntheticalert
+      # Checks what a release would upload, on every commit, so the first
+      # publish is not the first time the artifacts are assembled: the jars,
+      # POM, and Gradle module file go to build/staging-repo, unsigned, and
+      # empty Maven and Gradle projects resolve them from there and run them
+      # on the classpath and the module path (see the script).
+      - name: Stage the release artifacts
+        run: ./gradlew publishAllPublicationsToStagingRepository
+      - name: Resolve and run from empty projects
+        run: .github/scripts/check-consumers.sh "${GITHUB_WORKSPACE}/build/staging-repo" "${GITHUB_WORKSPACE}/gradlew"
+      # On a release tag, the release workflow signs and uploads exactly
+      # these files, the ones the checks above passed, so its job that holds
+      # the signing key and the Central token never runs a build. The jars
+      # target Java 17 on every leg (options.release); the first leg's are
+      # the ones that passed Error Prone.
+      - name: Keep the staged artifacts for the release
+        if: strategy.job-index == 0 && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staging-repo
+          path: build/staging-repo/
+          if-no-files-found: error

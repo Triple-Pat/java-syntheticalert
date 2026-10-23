@@ -11,7 +11,6 @@ opentelemetry = "1.65.0"
 errorpronePlugin = "5.1.1"
 nullawayPlugin = "3.2.0"
 spotlessPlugin = "8.10.1"
-mavenPublishPlugin = "0.37.0"
 
 [libraries]
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
@@ -29,4 +28,3 @@ opentelemetry-sdk-testing = { module = "io.opentelemetry:opentelemetry-sdk-testi
 errorprone = { id = "net.ltgt.errorprone", version.ref = "errorpronePlugin" }
 nullaway = { id = "net.ltgt.nullaway", version.ref = "nullawayPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotlessPlugin" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublishPlugin" }
