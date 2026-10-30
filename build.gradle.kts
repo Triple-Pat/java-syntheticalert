@@ -89,6 +89,10 @@ tasks.withType<JavaCompile>().configureEach {
     // Enforces a Java 8 API floor. `options.release` above holds the real
     // floor, Java 17.
     disable("Java8ApiChecker")
+    // Wants Markdown doc comments (///, JEP 467), which need Java 23. Javadoc
+    // before 23 reads them as plain comments, so on the 17 floor the docs
+    // would vanish. Re-enable once the floor reaches Java 23.
+    disable("TraditionalJavadocToMarkdown")
     nullaway { error() }
   }
 }
