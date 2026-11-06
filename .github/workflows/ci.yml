@@ -54,7 +54,7 @@ jobs:
       # Caches Gradle and validates the committed wrapper jar's checksum. No
       # cache on release tags: the published jars are built here, and nothing
       # an earlier run could have written may run beside them.
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-disabled: ${{ startsWith(github.ref, 'refs/tags/') }}
 
